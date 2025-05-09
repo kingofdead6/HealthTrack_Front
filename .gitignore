@@ -23,19 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 
-# Ignore assets
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.webp
-*.ico
-*.mp3
-*.mp4
-*.woff
-*.woff2
-*.ttf
-*.eot
-*.otf
-assets/
