@@ -156,12 +156,12 @@ export default function PatientDashboard() {
 
         {/* Sidebar */}
         <div
-          className={`fixed top-0 left-0 h-full w-64 bg-[#4285F4] shadow-xl z-40 flex flex-col justify-between transform transition-transform duration-300 md:transform-none ${
+          className={`overflow-y-scroll sm:overflow-hidden fixed top-0 left-0 h-full w-64 bg-[#4285F4] shadow-xl z-40 flex flex-col justify-between transform transition-transform duration-300 md:transform-none ${
             isMenuOpen ? "translate-x-0" : "-translate-x-full"
           } md:translate-x-0`} // Sidebar with conditional transform for mobile
         >
           {/* Logo and Menu Items */}
-          <div className="flex flex-col">
+          <div className="flex flex-col ">
             <div className="flex items-center justify-center py-8">
               <div className="text-2xl font-bold bg-white px-8 py-3 rounded-full">
                 <span className="text-black">Health</span>

@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "../../../api";
-
+import DocPlaceHolder from "/docPic.png"
 // HealthcareCard component to display provider details and manage appointments/favorites
 export default function HealthcareCard({ provider }) {
   // State declarations for managing UI and data
@@ -453,7 +453,14 @@ export default function HealthcareCard({ provider }) {
             />
           ) : (
             <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-medium">
-              No Image
+              <img
+              src={DocPlaceHolder}
+              alt={`${profileData.name}'s profile`}
+              className="w-24 h-24 rounded-full object-cover border-4 border-blue-100 shadow-lg"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/96?text=No+Image"; // Fallback image
+              }}
+            />
             </div>
           )}
           <h3 className="mt-4 text-2xl font-bold text-gray-900">{profileData.name}</h3>
@@ -659,7 +666,14 @@ export default function HealthcareCard({ provider }) {
           />
         ) : (
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-medium">
-            No Image
+            <img
+              src={DocPlaceHolder}
+              alt={`${provider.name}'s profile`}
+              className="w-16 h-16 rounded-full object-cover border-4 border-blue-100 shadow-lg"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/96?text=No+Image"; // Fallback image
+              }}
+            />
           </div>
         )}
         <div>

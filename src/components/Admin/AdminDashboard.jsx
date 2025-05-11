@@ -6,6 +6,7 @@ import AdminHealthCare from "./AdminHealthCare";
 import AdminReviews from "./AdminReviews";
 import AdminReports from "./AdminReports";
 import AddAdmin from "./AddAdmin";
+import AdminDashboardStats from "./AdminAnalytics";
 import { API_BASE_URL } from "../../../api";
 
 // Component for the admin dashboard, providing navigation and section rendering
@@ -117,10 +118,11 @@ export default function AdminDashboard() {
         <div className="flex flex-col flex-grow px-4 py-10 space-y-6">
           {[
             { label: "All Users", key: "allUsers" },
+            { label: "Statistics", key: "stats" },
             { label: "Healthcare Staff", key: "healthcareStaffs" },
             { label: "Reviews", key: "reviews" },
             { label: "Reports", key: "reports" },
-            { label: "Add Admin", key: "addAdmin" },
+            { label: "Add Admin", key: "addAdmin" },         
           ].map(({ label, key }) => {
             const isActive = activeSection === key;
             return (
@@ -165,6 +167,7 @@ export default function AdminDashboard() {
         <div className="p-4 mt-16">
           <div className="max-w-7xl mx-auto">
             {activeSection === "allUsers" && <UsersTable />}
+            {activeSection === "stats" && <AdminDashboardStats />}
             {activeSection === "healthcareStaffs" && <AdminHealthCare />}
             {activeSection === "reviews" && <AdminReviews />}
             {activeSection === "reports" && <AdminReports />}

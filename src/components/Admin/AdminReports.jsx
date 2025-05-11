@@ -63,7 +63,7 @@ export default function AdminReports() {
   const handleBanUser = async (patientId) => {
     try {
       await axios.patch(
-        `${API_BASE_URL}/api/users/ban/${patientId}`,
+        `${API_BASE_URL}/api/admin/ban/${patientId}`,
         {},
         {
           headers: {
@@ -88,7 +88,7 @@ export default function AdminReports() {
   const handleUnbanUser = async (patientId) => {
     try {
       await axios.patch(
-        `${API_BASE_URL}/api/users/unban/${patientId}`,
+        `${API_BASE_URL}/api/admin/unban/${patientId}`,
         {},
         {
           headers: {
@@ -113,7 +113,7 @@ export default function AdminReports() {
   const handleDeleteUser = async (patientId) => {
     try {
       await axios.delete(
-        `${API_BASE_URL}/api/users/delete/${patientId}`,
+        `${API_BASE_URL}/api/admin/delete/${patientId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,

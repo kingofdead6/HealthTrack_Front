@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "../../../api";
 import ReportUser from "../Shared/ReportUser";
+import DocPlaceHolder from "/docPic.png"
 
 // HealthcareAnnouncements component to manage and display announcements
 export default function HealthcareAnnouncements() {
@@ -293,7 +294,12 @@ export default function HealthcareAnnouncements() {
                       />
                     ) : (
                       <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
-                        No Image
+                       <img
+                        src={DocPlaceHolder}
+                        alt={`${announcement.healthcare_id.name}'s profile`}
+                        className="w-16 h-16 rounded-full object-cover border-4 border-indigo-200 shadow-sm"
+                        onError={(e) => (e.target.src = "https://via.placeholder.com/64?text=Image+Not+Found")}
+                      />
                       </div>
                     )}
                   </div>
@@ -458,7 +464,12 @@ export default function HealthcareAnnouncements() {
                       />
                     ) : (
                       <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium shadow-md">
-                        No Image
+                       <img
+                        src={DocPlaceHolder}
+                        alt={`${selectedHealthcare.name}'s profile`}
+                        className="w-24 h-24 rounded-full object-cover border-4 border-indigo-200 shadow-md"
+                        onError={(e) => (e.target.src = "https://via.placeholder.com/96?text=Image+Not+Found")}
+                      />
                       </div>
                     )}
                   </div>

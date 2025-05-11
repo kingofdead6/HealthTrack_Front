@@ -22,7 +22,7 @@ export default function UsersTable({ onUserClick }) {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/users/all`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/all`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "Content-Type": "application/json",
@@ -113,7 +113,7 @@ export default function UsersTable({ onUserClick }) {
     if (selectedUserId) {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/users/ban/${selectedUserId}`,
+          `${API_BASE_URL}/api/admin/ban/${selectedUserId}`,
           {
             method: "PATCH",
             headers: {
@@ -143,7 +143,7 @@ export default function UsersTable({ onUserClick }) {
     if (selectedUserId) {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/users/unban/${selectedUserId}`,
+          `${API_BASE_URL}/api/admin/unban/${selectedUserId}`,
           {
             method: "PATCH",
             headers: {
@@ -173,7 +173,7 @@ export default function UsersTable({ onUserClick }) {
     if (selectedUserId) {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/users/delete/${selectedUserId}`,
+          `${API_BASE_URL}/api/admin/delete/${selectedUserId}`,
           {
             method: "DELETE",
             headers: {

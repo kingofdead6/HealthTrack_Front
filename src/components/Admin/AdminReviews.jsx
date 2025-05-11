@@ -78,7 +78,7 @@ export default function AdminReviews() {
     if (!window.confirm("Are you sure you want to ban this user?")) return;
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/ban/${patientId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/ban/${patientId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -104,7 +104,7 @@ export default function AdminReviews() {
     if (!window.confirm("Are you sure you want to unban this user?")) return;
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/unban/${patientId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/unban/${patientId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -130,7 +130,7 @@ export default function AdminReviews() {
   const handleDeleteUser = async (patientId) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/delete/${patientId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/delete/${patientId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

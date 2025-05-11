@@ -6,6 +6,7 @@ import CreateToolMedicamentPopup from "../LocationDashboard/CreateToolMedicament
 import HealthcareProfilePopup from "../LocationDashboard/HealthcareProfilePopup";
 import ReportUser from "../Shared/ReportUser";
 import { API_BASE_URL } from "../../../api";
+import DocPlaceHolder from "/docPic.png"
 
 // ToolsMedicaments component to display and manage tools or medicaments
 export default function ToolsMedicaments({ user }) {
@@ -246,7 +247,12 @@ export default function ToolsMedicaments({ user }) {
                       />
                     ) : (
                       <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
-                        No Image
+                        <img
+                        src={DocPlaceHolder}
+                        alt={`${item.user_id.name}'s profile`}
+                        className="w-16 h-16 rounded-full object-cover border-4 border-indigo-200 shadow-sm hover:opacity-80 transition-opacity duration-200"
+                        onError={(e) => (e.target.src = "https://via.placeholder.com/64?text=Image+Not+Found")}
+                      />
                       </div>
                     )}
                   </div>

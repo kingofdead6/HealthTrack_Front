@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import { API_BASE_URL } from "../../../api";
+import DocPlaceHolder from "/docPic.png"
 
 // HealthcareAppointments component to manage and display appointments
 export default function HealthcareAppointments() {
@@ -353,7 +354,12 @@ export default function HealthcareAppointments() {
                         />
                       ) : (
                         <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                          No Img
+                          <img
+                          src={DocPlaceHolder}
+                          alt={`${appointment.patient_id.name}'s profile`}
+                          className="w-20 h-20 rounded-full object-cover border-2 border-indigo-200"
+                          onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
+                        />
                         </div>
                       )}
                     </div>
@@ -431,7 +437,12 @@ export default function HealthcareAppointments() {
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium shadow-md">
-                      No Image
+                      <img
+                      src={DocPlaceHolder}
+                      alt={`${selectedPatient.user_id.name}'s profile`}
+                      className="w-20 h-20 rounded-full object-cover border-4 border-indigo-200 shadow-md"
+                      onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
+                    />
                     </div>
                   )}
                 </div>
