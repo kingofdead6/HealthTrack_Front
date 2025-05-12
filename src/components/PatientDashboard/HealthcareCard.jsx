@@ -331,7 +331,7 @@ export default function HealthcareCard({ provider }) {
           <span>{provider.working_hours || "Not specified"}</span>
         </div>
         <div className="flex justify-between">
-          <span className="font-semibold">Delivery:</span>
+          <span className="font-semibold mb-3">Delivery:</span>
           <span className={provider.can_deliver ? "text-green-600" : "text-red-600"}>
             {provider.can_deliver ? "Yes" : "No"}
           </span>
@@ -547,50 +547,52 @@ export default function HealthcareCard({ provider }) {
             </>
           )}
         </div>
-        {/* Ratings and Reviews */}
-        <div>
-          <h4 className="text-lg font-semibold text-gray-900 mb-3">Ratings & Reviews</h4>
-          <p className="flex justify-between">
-            <span className="font-semibold">Average Rating:</span>
-            <span className={getRatingColor(profileData.averageRating)}>
-              {profileData.averageRating ? `${profileData.averageRating}/5` : "No ratings yet"}
-            </span>
-          </p>
-          {profileData.comments && profileData.comments.length > 0 ? (
-            <div className="mt-4 space-y-4 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-              {profileData.comments.map((comment, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] ${getReviewBackground(
-                    comment.rating
-                  )}`}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="font-semibold text-gray-800 text-base">{comment.patientName}</p>
-                    <div className="flex items-center space-x-1">
-                      <svg
-                        className={`w-5 h-5 ${getRatingColor(comment.rating)}`}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      <p className={`text-sm font-medium ${getRatingColor(comment.rating)}`}>
-                        {comment.rating}/5
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-gray-700 text-sm leading-relaxed">{comment.comment || "No comment"}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {new Date(comment.date).toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-600 mt-2 text-sm">No reviews yet.</p>
-          )}
-        </div>
+       {/* Ratings and Reviews */}
+       {["doctor", "nurse"].includes(profileData.healthcare_type) && (
+         <div>
+           <h4 className="text-lg font-semibold text-gray-900 mb-3">Ratings & Reviews</h4>
+           <p className="flex justify-between">
+             <span className="font-semibold">Average Rating:</span>
+             <span className={getRatingColor(profileData.averageRating)}>
+               {profileData.averageRating ? `${profileData.averageRating}/5` : "No ratings yet"}
+             </span>
+           </p>
+           {profileData.comments && profileData.comments.length > 0 ? (
+             <div className="mt-4 space-y-4 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+               {profileData.comments.map((comment, index) => (
+                 <div
+                   key={index}
+                   className={`p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] ${getReviewBackground(
+                     comment.rating
+                   )}`}
+                 >
+                   <div className="flex justify-between items-center mb-2">
+                     <p className="font-semibold text-gray-800 text-base">{comment.patientName}</p>
+                     <div className="flex items-center space-x-1">
+                       <svg
+                         className={`w-5 h-5 ${getRatingColor(comment.rating)}`}
+                         fill="currentColor"
+                         viewBox="0 0 20 20"
+                       >
+                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3 .921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784 .57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81 .588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                       </svg>
+                       <p className={`text-sm font-medium ${getRatingColor(comment.rating)}`}>
+                         {comment.rating}/5
+                       </p>
+                     </div>
+                   </div>
+                   <p className="text-gray-700 text-sm leading-relaxed">{comment.comment || "No comment"}</p>
+                   <p className="text-xs text-gray-500 mt-2">
+                     {new Date(comment.date).toLocaleDateString()}
+                   </p>
+                 </div>
+               ))}
+             </div>
+           ) : (
+             <p className="text-gray-600 mt-2 text-sm">No reviews yet.</p>
+           )}
+         </div>
+       )}
       </div>
     );
   };
@@ -693,12 +695,14 @@ export default function HealthcareCard({ provider }) {
       <div className="mb-6">{renderProviderDetails()}</div>
 
       {/* Schedule Appointment Button */}
-      <button
-        onClick={() => setShowAppointmentModal(true)} // Open appointment modal
-        className="cursor-pointer w-full bg-blue-600 text-white py-3 px-4 rounded-full hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm"
-      >
-        Schedule Appointment
-      </button>
+{["doctor", "nurse"].includes(provider.healthcare_type) && (
+  <button
+    onClick={() => setShowAppointmentModal(true)} // Open appointment modal
+    className="cursor-pointer w-full bg-blue-600 text-white py-3 px-4 rounded-full hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm"
+  >
+    Schedule Appointment
+  </button>
+)}
 
       {/* Appointment Modal */}
       {showAppointmentModal && (

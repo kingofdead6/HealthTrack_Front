@@ -132,7 +132,7 @@ export default function FavoritesList() {
   };
 
   // Define filter options
-  const healthcareTypes = ["doctor", "nurse"]; // Available healthcare types
+  const healthcareTypes = ["doctor", "nurse" , "pharmacy" , "laboratory"]; // Available healthcare types
   const specialties = [
     ...new Set(favorites.map((p) => p.speciality?.toLowerCase())),
   ].filter(Boolean); // Unique specialties from favorites
@@ -299,7 +299,6 @@ export default function FavoritesList() {
         ) : filteredFavorites.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredFavorites.map((provider) => {
-              if (provider.healthcare_type === "doctor" || provider.healthcare_type === "nurse") {
                 return (
                   <HealthcareCard
                     key={provider.user_id}
@@ -307,7 +306,7 @@ export default function FavoritesList() {
                     onFavoriteToggle={refreshFavorites} // Pass refresh function to update favorites
                   />
                 );
-              }
+              
             })}
           </div>
         ) : (

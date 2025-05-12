@@ -45,9 +45,9 @@ export default function MedTrackHome() {
         className="relative z-20 flex flex-col items-center justify-between text-center px-4 py-10 min-h-screen"
       >
         {/* Title */}
-        <div className="mt-24 sm:mt-32">
+        <div className="mt-50 -mb-10 sm:mt-32">
           <div
-            className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl dancing-script-mainfont mb-4"
+            className="text-7xl sm:text-8xl md:text-7xl lg:text-8xl dancing-script-mainfont mb-4"
             style={{
               textShadow: `
                 0 0 10px rgba(255, 255, 255, 0.8),
@@ -62,8 +62,8 @@ export default function MedTrackHome() {
             <span className="text-blue-900">Track</span>
           </div>
         </div>
-
-       
+      
+          
 
         {/* Features */}
         <div className="flex flex-row flex-wrap justify-center items-center gap-6 sm:gap-14 text-white mb-20">

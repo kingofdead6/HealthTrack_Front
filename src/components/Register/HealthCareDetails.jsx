@@ -224,7 +224,7 @@ export default function HealthcareDetails() {
         </div>
 
         {/* Right Section (Form) */}
-        <div className="w-full md:w-1/2 p-6 shadow-2xl rounded-r-4xl rounded-l-4xl bg-white">
+        <div className="-mx-10 md:mx-0 md:w-1/2 p-6 shadow-2xl rounded-r-4xl rounded-l-4xl bg-white">
           <h2 className="text-2xl font-semibold text-gray-900 text-center mb-6">
             {healthcareType.charAt(0).toUpperCase() + healthcareType.slice(1).toLowerCase()} Details
           </h2>

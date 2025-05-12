@@ -5,6 +5,7 @@ import { useSocket } from "../../context/SocketContext";
 import { API_BASE_URL } from "../../../api";
 import { HiDotsVertical } from "react-icons/hi";
 import ReportUser from "../Shared/ReportUser";
+import { useMediaQuery } from "react-responsive";
 
 // Displays a list of chats for the user with options to select, delete, or report chats
 export default function ChatList({ userId, onChatSelect, selectedChatId }) {
@@ -14,6 +15,7 @@ export default function ChatList({ userId, onChatSelect, selectedChatId }) {
   const [reportOpen, setReportOpen] = useState(null); // Track open report popup
   const socket = useSocket(); // Access Socket.IO instance
   const menuRef = useRef(null); // Ref to track the menu element
+  const isMobile = useMediaQuery({ query: '(max-width: 768px)' }); // Check if mobile device
 
   // Sorts chats by last message time in descending order
   const sortChatsByLastMessageTime = (chatsArray) => {
@@ -187,6 +189,70 @@ export default function ChatList({ userId, onChatSelect, selectedChatId }) {
     };
   }, [socket, userId, selectedChatId, onChatSelect]);
 
+  // Mobile view for chat list
+  if (isMobile) {
+    return (
+      <div className="bg-white p-4 h-full overflow-y-auto">
+        <h2 className="text-xl font-bold text-[#1a73e8] mb-4">Chats</h2>
+        {error ? (
+          <div className="flex items-center justify-center h-full bg-red-50 rounded-2xl p-4">
+            <p className="text-red-600 font-semibold">{error}</p>
+          </div>
+        ) : chats.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <p className="text-lg opacity-80">No chats available</p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {chats.map((chat) => {
+              const displayName =
+                chat.patient_id._id === userId
+                  ? chat.healthcare_id.name
+                  : chat.patient_id.name;
+              const isDeleted =
+                chat.patient_id._id === userId
+                  ? chat.healthcare_id.isDeleted
+                  : chat.patient_id.isDeleted;
+              const reportedId =
+                chat.patient_id._id === userId
+                  ? chat.healthcare_id._id
+                  : chat.patient_id._id;
+
+              return (
+                <div
+                  key={chat._id}
+                  className="flex flex-col items-center"
+                >
+                  <div
+                    className={`relative w-16 h-16 rounded-full flex items-center justify-center cursor-pointer ${
+                      selectedChatId === chat._id
+                        ? "bg-[#1a73e8]"
+                        : "bg-gray-200"
+                    }`}
+                    onClick={() => handleChatSelect(chat._id)}
+                  >
+                    <span className="text-xl font-bold text-white">
+                      {displayName.charAt(0).toUpperCase()}
+                    </span>
+                    {chat.unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-[#e63946] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {chat.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-sm mt-2 text-center ${isDeleted ? "text-red-600" : "text-gray-800"}`}>
+                    {displayName.split(' ')[0]}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop view for chat list
   return (
     <div className="bg-gradient-to-b from-white to-gray-50 rounded-3xl shadow-xl p-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
       <h2 className="text-3xl font-bold text-[#1a73e8] mb-8 tracking-tight">Your Chats</h2>
@@ -201,7 +267,6 @@ export default function ChatList({ userId, onChatSelect, selectedChatId }) {
       ) : (
         <div className="space-y-3">
           {chats.map((chat) => {
-            // Determine display name, deletion status, and reported user ID
             const displayName =
               chat.patient_id._id === userId
                 ? chat.healthcare_id.name
@@ -259,7 +324,7 @@ export default function ChatList({ userId, onChatSelect, selectedChatId }) {
                   {menuOpen === chat._id && (
                     <div
                       ref={menuRef}
-                      className=" absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50"
+                      className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50"
                     >
                       <button
                         onClick={() => handleReportUser(reportedId)}
