@@ -2,8 +2,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import PatientGuide from "/userGuide/guidepatient.mov"; 
-import HealthCareGuide from "/userGuide/guidehealthcare.mov"; 
 
 export default function UserGuide() {
   const navigate = useNavigate();
@@ -16,6 +14,8 @@ export default function UserGuide() {
   const [patientPlaying, setPatientPlaying] = useState(true);
   const [popupVideo, setPopupVideo] = useState(null);
   const [popupPlaying, setPopupPlaying] = useState(true);
+  const HealthCareGuide = "https://res.cloudinary.com/dtwa3lxdk/video/upload/v1747172788/guidehealthcare_l58vr1.mp4"
+  const PatientGuide = "https://res.cloudinary.com/dtwa3lxdk/video/upload/v1747172668/guidepatient_dm2pgy.mp4";
 
   // Set video playback speed on mount
   useEffect(() => {

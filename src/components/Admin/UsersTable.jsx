@@ -22,8 +22,6 @@ export default function UsersTable({ onUserClick }) {
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false); // State for PDF download
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false); // State for Excel download
 
-  // Log to verify autoTable import
-  console.log("autoTable imported:", typeof autoTable);
 
   // Fetch all users on component mount
   useEffect(() => {
