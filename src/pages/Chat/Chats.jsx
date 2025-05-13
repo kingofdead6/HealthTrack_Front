@@ -11,7 +11,7 @@ export default function Chats({ userId }) {
   return (
     // Provide socket context for real-time messaging
     <SocketProvider userId={userId}>
-      <div className="flex gap-4 h-[80vh] p-4">
+      <div className="flex gap-4 h-screen p-4">
         <div className="w-1/3">
           <ChatList userId={userId} />
         </div>

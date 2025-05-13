@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_BASE_URL } from "../../../api";
 import debounce from "lodash.debounce";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 // Component for displaying and managing a table of users
 export default function UsersTable({ onUserClick }) {
@@ -16,6 +19,11 @@ export default function UsersTable({ onUserClick }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false); // State for PDF download
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false); // State for Excel download
+
+  // Log to verify autoTable import
+  console.log("autoTable imported:", typeof autoTable);
 
   // Fetch all users on component mount
   useEffect(() => {
@@ -35,6 +43,8 @@ export default function UsersTable({ onUserClick }) {
         } else {
           throw new Error("Failed to fetch users");
         }
+      } catch (error) {
+        alert("Failed to fetch users.");
       } finally {
         setLoading(false);
       }
@@ -210,6 +220,140 @@ export default function UsersTable({ onUserClick }) {
     }
   };
 
+  // Download table as PDF using jsPDF
+  const handleDownloadPDF = async () => {
+    if (users.length === 0) {
+      alert("No users to export.");
+      return;
+    }
+
+    setIsDownloadingPDF(true);
+    try {
+      console.log("Starting PDF generation for", users.length, "users");
+      console.log("Users data:", users);
+
+      const doc = new jsPDF();
+
+      // Add total users, title, and date
+      doc.setFontSize(12);
+      doc.setTextColor(100); // Gray
+      doc.text(`Total Users: ${users.length}`, 20, 15);
+      doc.setFontSize(20);
+      doc.setTextColor(66, 133, 244); // #4285F4
+      doc.text("Users Table", 20, 25);
+      doc.setFontSize(12);
+      doc.setTextColor(100); // Gray
+      doc.text(
+        `Generated on ${new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}`,
+        20,
+        35
+      );
+
+      // Validate and prepare table data
+      const tableData = users.map((user) => {
+        const row = [
+          String(user._id || "N/A"),
+          String(user.name || "N/A"),
+          String(user.email || "N/A"),
+          String(user.user_type || "N/A"),
+          String(
+            user.user_type === "healthcare"
+              ? user.healthcare_type || "N/A"
+              : "Patient"
+          ),
+          String(user.isBanned ? "Banned" : "Active"),
+        ];
+        console.log("Row data:", row);
+        return row;
+      });
+
+      // Apply autoTable plugin
+      if (typeof autoTable !== "function") {
+        throw new Error("jspdf-autotable plugin is not loaded correctly");
+      }
+
+      autoTable(doc, {
+        startY: 45,
+        head: [["User ID", "Name", "Email", "User Type", "Healthcare Type", "Status"]],
+        body: tableData,
+        theme: "striped",
+        headStyles: {
+          fillColor: [66, 133, 244], // #4285F4
+          textColor: [255, 255, 255],
+          fontSize: 10,
+        },
+        bodyStyles: {
+          fontSize: 9,
+        },
+        alternateRowStyles: {
+          fillColor: [225, 238, 255], // #E1EEFF
+        },
+        margin: { left: 20, right: 20 },
+        styles: {
+          font: "helvetica",
+          lineColor: [209, 213, 219], // Gray border
+          lineWidth: 0.1,
+        },
+      });
+
+      // Save the PDF
+      const date = new Date().toISOString().split("T")[0];
+      console.log("Saving PDF as UsersTable_", date, ".pdf");
+      doc.save(`UsersTable_${date}.pdf`);
+      console.log("PDF generation complete");
+    } catch ( personallyIdentifiableInformation) {
+      console.error("PDF generation failed:", personallyIdentifiableInformation.message, personallyIdentifiableInformation.stack);
+      alert(`Failed to generate PDF: ${personallyIdentifiableInformation.message}. Please try again.`);
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
+  // Download table as Excel using xlsx
+  const handleDownloadExcel = async () => {
+    if (users.length === 0) {
+      alert("No users to export.");
+      return;
+    }
+
+    setIsDownloadingExcel(true);
+    try {
+      console.log("Starting Excel generation for", users.length, "users");
+
+      // Prepare data for Excel
+      const tableData = users.map((user) => ({
+        "User ID": user._id || "N/A",
+        Name: user.name || "N/A",
+        Email: user.email || "N/A",
+        "User Type": user.user_type || "N/A",
+        "Healthcare Type":
+          user.user_type === "healthcare"
+            ? user.healthcare_type || "N/A"
+            : "Patient",
+        Status: user.isBanned ? "Banned" : "Active",
+      }));
+
+      // Create worksheet and workbook
+      const worksheet = XLSX.utils.json_to_sheet(tableData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+
+      // Save the Excel file
+      const date = new Date().toISOString().split("T")[0];
+      XLSX.writeFile(workbook, `UsersTable_${date}.xlsx`);
+      console.log("Excel generation complete");
+    } catch (error) {
+      console.error("Excel generation failed:", error.message, error.stack);
+      alert(`Failed to generate Excel: ${error.message}. Please try again.`);
+    } finally {
+      setIsDownloadingExcel(false);
+    }
+  };
+
   // Display loading state
   if (loading) {
     return (
@@ -256,7 +400,7 @@ export default function UsersTable({ onUserClick }) {
         </h2>
 
         {/* Filter inputs */}
-        <div className="mb-8 bg-white rounded-2xl shadow-lg p-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="mb-4 bg-white rounded-2xl shadow-lg p-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <input
             type="text"
             placeholder="Search by name or email..."
@@ -292,6 +436,56 @@ export default function UsersTable({ onUserClick }) {
             <option value="active">Active</option>
             <option value="banned">Banned</option>
           </select>
+        </div>
+
+        {/* Download Buttons */}
+        <div className="flex justify-center mb-8 gap-4">
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isDownloadingPDF}
+            className={`cursor-pointer flex items-center gap-2 bg-gradient-to-r from-[#4285F4] to-[#34A853] text-white px-6 py-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold ${
+              isDownloadingPDF ? "opacity-70 cursor-not-allowed" : "hover:from-[#3267D6] hover:to-[#2E8B57]"
+            }`}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m-9 3V5a2 2 0 012-2h8a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2z"
+              />
+            </svg>
+            {isDownloadingPDF ? "Downloading..." : "Download as PDF"}
+          </button>
+          <button
+            onClick={handleDownloadExcel}
+            disabled={isDownloadingExcel}
+            className={`cursor-pointer flex items-center gap-2 bg-gradient-to-r from-[#4285F4] to-[#34A853] text-white px-6 py-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold ${
+              isDownloadingExcel ? "opacity-70 cursor-not-allowed" : "hover:from-[#3267D6] hover:to-[#2E8B57]"
+            }`}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m-9 3V5a2 2 0 012-2h8a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2z"
+              />
+            </svg>
+            {isDownloadingExcel ? "Downloading..." : "Download as Excel"}
+          </button>
         </div>
 
         {/* Users table or empty state */}

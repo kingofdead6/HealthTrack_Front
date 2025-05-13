@@ -155,7 +155,7 @@ export default function PatientDashboard() {
         `}
       </style>
       
-      <div className="min-h-screen bg-[#E1EEFF] flex flex-col md:flex-row overflow-y-scroll">
+      <div className="min-h-screen bg-[#E1EEFF] flex flex-col md:flex-row overflow-hidden">
         {/* Hamburger Menu Button for Mobile */}
         <button
           className="md:hidden fixed top-4 left-4 z-50 p-2 bg-[#4285F4] text-white rounded-md"
@@ -263,7 +263,7 @@ export default function PatientDashboard() {
           )}
 
           {/* Main Section Content with custom scrollbar */}
-          <div className={`p-4 ${activeSection !== "menu" ? "pt-4" : "pt-4"} custom-scrollbar-y`} style={{ maxHeight: 'calc(100vh - 64px)', overflowY: 'auto' }}>
+          <div className={`p-4 ${activeSection !== "menu" ? "pt-4" : "pt-4"} `}>
             <div className="max-w-9xl mx-auto">
               <div className="-ml-5 -mr-5 -mt-4 md:-ml-50">
                 {activeSection === "menu" && <PatientMain />}
@@ -275,7 +275,7 @@ export default function PatientDashboard() {
               {activeSection === "appointments" && <Appointments />}
               {activeSection === "favorites" && <FavoritesList />}
               {activeSection === "chats" && (
-                <div className="flex flex-col md:flex-row gap-4 h-[80vh]">
+                <div className="flex flex-col md:flex-row gap-4 h-[90vh]">
                   <div className="w-full md:w-1/3 custom-scrollbar-y" style={{ maxHeight: '100%', overflowY: 'auto' }}>
                     <ChatList
                       userId={user._id}

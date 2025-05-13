@@ -6,18 +6,20 @@ import { API_BASE_URL } from "../../../api";
 import { FaBell, FaTrash, FaUndo, FaCheckCircle } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Displays a notification dropdown with options to mark as read or delete
 export default function Notifications({ onNotificationClick }) {
   // State for notifications and UI
-  const [notifications, setNotifications] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const socket = useSocket();
-  const dropdownRef = useRef(null);
+  const [notifications, setNotifications] = useState([]); // List of notifications
+  const [isOpen, setIsOpen] = useState(false); // Controls dropdown visibility
+  const [error, setError] = useState(null); // Error messages for API failures
+  const [success, setSuccess] = useState(null); // Success messages for actions
+  const [pendingDelete, setPendingDelete] = useState(null); // Tracks notification pending deletion
+  const socket = useSocket(); // Socket context for real-time updates
+  const dropdownRef = useRef(null); // Ref for dropdown to handle outside clicks
 
   // Fetch notifications and set up socket listeners
   useEffect(() => {
+    // Fetch notifications from API
     const fetchNotifications = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/notifications`, {
@@ -31,11 +33,13 @@ export default function Notifications({ onNotificationClick }) {
     fetchNotifications();
 
     if (socket) {
+      // Add new notification to list
       socket.on("receive_notification", (notification) => {
         setNotifications((prev) => [notification, ...prev]);
       });
     }
 
+    // Cleanup socket listeners on unmount
     return () => {
       if (socket) {
         socket.off("receive_notification");
@@ -168,7 +172,10 @@ export default function Notifications({ onNotificationClick }) {
     <div className="relative">
       {/* Notification Bell Button */}
       <motion.button
-        onClick={toggleDropdown}
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleDropdown();
+        }}
         className="cursor-pointer relative flex items-center justify-center p-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 focus:ring-4 focus:ring-blue-300 transition-all duration-200"
         aria-label={`Notifications (${unreadCount} unread)`}
         aria-expanded={isOpen}

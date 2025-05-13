@@ -248,7 +248,7 @@ export default function HealthcareDetails() {
 
             {/* Working Hours Dropdown */}
             <div>
-              <label className="block p-2 text-gray-500">Working Hours:</label>
+              <label className="block p-2 text-gray-500">Working Hours (Can be edited later) :</label>
               <select
                 name="working_hours"
                 value={formData.working_hours}
@@ -290,7 +290,7 @@ export default function HealthcareDetails() {
 
             {/* Certificate Upload */}
             <div>
-              <label className="block p-2 text-gray-500">Certificate (Upload Image):</label>
+              <label className="block p-2 text-gray-500">Certificate (Upload Image) :</label>
               <div className="relative">
                 <input
                   name="certificate"
@@ -382,7 +382,7 @@ export default function HealthcareDetails() {
                   </AnimatePresence>
                 </div>
                 <div>
-                  <label className="block p-2 text-gray-500">Clinic Name (Optional):</label>
+                  <label className="block p-2 text-gray-500">Clinic Name (Optional) :</label>
                   <input
                     name="clinic_name"
                     placeholder="Enter clinic name"

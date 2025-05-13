@@ -69,7 +69,7 @@ export default function Login() {
   const isFormComplete = formData.email.trim() !== "" && formData.password.trim() !== "";
 
   return (
-    <div className="min-h-screen flex items-center mx-12 justify-center p-4 mt-16">
+    <div className="min-h-screen flex flex-col items-center mx-12 justify-center p-4 ">
       <div className="w-full max-w-5xl pt-6 pb-6 flex flex-col md:flex-row">
         {/* Left Section (Image) */}
         <div className="hidden md:flex md:w-1/2 bg-blue-200 p-6 rounded-r-4xl rounded-l-4xl mr-6">

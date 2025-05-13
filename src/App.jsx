@@ -19,6 +19,7 @@ import OurTeam from "./pages/OurTeam/page";
 import Location from "./pages/Location/page";
 import PrivacyPolicy from "./pages/PrivacyPolicy/page";
 import UserGuide from "./pages/UserGuide/page";
+import DownloadAppointmentPDF from "./components/HealthCareDashboard/DownloadAppointmentPDF";
 
 
 function App() {
@@ -43,12 +44,12 @@ function App() {
         <Route path="/patient-dashboard" element={<Patient />} />
         {/* Healthcare Routes */}
         <Route path="/healthcare-dashboard" element={<HealthCare />} />
+        <Route path="/download-appointment/:id" element={<DownloadAppointmentPDF />} />
         {/* Location Dashboards Routes */}
         <Route path="/location-dashboard" element={<Location />} />
 
         {/* Account Delete Routes */}
         <Route path="/delete-account" element={<DeleteAccount />} />
-
         {/*Our Team Route */}
         <Route path="/our-team" element={<OurTeam />} />
         {/*Privacy Policy Route*/}

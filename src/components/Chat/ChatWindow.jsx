@@ -4,29 +4,34 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useSocket } from "../../context/SocketContext";
 import { API_BASE_URL } from "../../../api";
+import { useMediaQuery } from "react-responsive";
 
 // Displays and manages a chat window for sending, editing, and deleting messages
 export default function ChatWindow({ chatId, userId }) {
-  const [messages, setMessages] = useState([]); // Store chat messages
-  const [newMessage, setNewMessage] = useState(""); // Store new message input
-  const [file, setFile] = useState(null); // Store selected file
-  const [filePreview, setFilePreview] = useState(null); // Store file preview data
-  const [uploadProgress, setUploadProgress] = useState(0); // Track file upload progress
-  const [loading, setLoading] = useState(false); // Track loading state
-  const [error, setError] = useState(""); // Store error messages
-  const [replyingTo, setReplyingTo] = useState(null); // Track message being replied to
-  const [editingMessage, setEditingMessage] = useState(null); // Track message being edited
-  const [editContent, setEditContent] = useState(""); // Store edited message content
-  const [menuVisible, setMenuVisible] = useState(null); // Track which message's menu is visible
-  const socket = useSocket(); // Access Socket.IO instance
-  const messagesEndRef = useRef(null); // Ref to scroll to latest message
+  // State for managing chat messages and UI interactions
+  const [messages, setMessages] = useState([]); // List of chat messages
+  const [newMessage, setNewMessage] = useState(""); // Text for new message input
+  const [file, setFile] = useState(null); // Selected file for upload
+  const [filePreview, setFilePreview] = useState(null); // Preview data for selected file
+  const [uploadProgress, setUploadProgress] = useState(0); // File upload progress percentage
+  const [loading, setLoading] = useState(false); // Loading state for API calls
+  const [error, setError] = useState(""); // Error messages for API or validation failures
+  const [replyingTo, setReplyingTo] = useState(null); // Message being replied to
+  const [editingMessage, setEditingMessage] = useState(null); // Message being edited
+  const [editContent, setEditContent] = useState(""); // Text for editing a message
+  const [menuVisible, setMenuVisible] = useState(null); // Tracks which message’s menu is open
+  const socket = useSocket(); // Socket context for real-time messaging
+  // Refs for DOM interactions
+  const messagesEndRef = useRef(null); // Ref to scroll to the latest message
   const fileInputRef = useRef(null); // Ref for file input element
-  const messageRefs = useRef({}); // Refs for message elements
-  const touchTimer = useRef(null); // Ref for long-press timer
-  const menuRef = useRef(null); // Ref for dropdown menu
+  const messageRefs = useRef({}); // Refs for individual messages (e.g., for scrolling)
+  const longPressTimer = useRef(null); // Tracks long-press timeout for mobile
+  const menuRef = useRef(null); // Ref for menu to handle outside clicks
+  const isMobile = useMediaQuery({ query: "(max-width: 768px)" }); // Detects mobile view (≤768px)
 
-  // Fetches messages and sets up socket event listeners
+  // Fetches messages and sets up socket event listeners for real-time updates
   useEffect(() => {
+    // Fetch chat messages from API
     const fetchMessages = async () => {
       try {
         setLoading(true);
@@ -44,11 +49,14 @@ export default function ChatWindow({ chatId, userId }) {
     fetchMessages();
 
     if (socket) {
+      // Join the chat room
       socket.emit("join_chat", chatId);
 
+      // Handle incoming messages
       const handleReceiveMessage = (message) => {
         if (message.chat_id === chatId) {
           setMessages((prev) => {
+            // Update existing message (e.g., replace temp message) or add new one
             if (prev.some((msg) => msg._id === message._id || msg.tempId === message.tempId)) {
               return prev.map((msg) =>
                 msg.tempId === message.tempId ? { ...message, isNew: true } : msg
@@ -57,12 +65,14 @@ export default function ChatWindow({ chatId, userId }) {
             return [...prev, { ...message, isNew: true }];
           });
 
+          // Mark messages as seen if not sent by the current user
           if (message.sender_id?._id !== userId) {
             socket.emit("mark_messages_seen", { chatId, userId });
           }
         }
       };
 
+      // Update a message when edited
       const handleMessageUpdated = (updatedMessage) => {
         if (updatedMessage.chat_id === chatId) {
           setMessages((prev) =>
@@ -73,6 +83,7 @@ export default function ChatWindow({ chatId, userId }) {
         }
       };
 
+      // Mark a message as deleted
       const handleMessageDeleted = (deletedMessage) => {
         if (deletedMessage.chat_id === chatId) {
           setMessages((prev) =>
@@ -93,6 +104,7 @@ export default function ChatWindow({ chatId, userId }) {
         }
       };
 
+      // Update seenBy list when a message is seen
       const handleMessageSeen = ({ messageId, userId: seenUserId }) => {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -103,12 +115,14 @@ export default function ChatWindow({ chatId, userId }) {
         );
       };
 
+      // Register socket event listeners
       socket.on("receive_message", handleReceiveMessage);
       socket.on("message_updated", handleMessageUpdated);
       socket.on("message_deleted", handleMessageDeleted);
       socket.on("message_seen", handleMessageSeen);
       socket.emit("mark_messages_seen", { chatId, userId });
 
+      // Cleanup socket listeners on unmount
       return () => {
         socket.off("receive_message", handleReceiveMessage);
         socket.off("message_updated", handleMessageUpdated);
@@ -118,12 +132,12 @@ export default function ChatWindow({ chatId, userId }) {
     }
   }, [chatId, socket, userId]);
 
-  // Scrolls to the latest message
+  // Auto-scroll to the latest message when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handles clicks outside the dropdown menu to close it
+  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -137,7 +151,7 @@ export default function ChatWindow({ chatId, userId }) {
     };
   }, []);
 
-  // Handles file selection and validation
+  // Validate and handle file selection for upload
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
@@ -160,7 +174,7 @@ export default function ChatWindow({ chatId, userId }) {
     }
   };
 
-  // Removes the selected file
+  // Remove selected file and clear preview
   const handleRemoveFile = () => {
     setFile(null);
     setFilePreview(null);
@@ -169,7 +183,7 @@ export default function ChatWindow({ chatId, userId }) {
     }
   };
 
-  // Sends a new message with optional file and reply
+  // Send a new message with optional file or reply
   const handleSendMessage = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -189,6 +203,7 @@ export default function ChatWindow({ chatId, userId }) {
     setUploadProgress(0);
 
     try {
+      // Create optimistic message for instant UI feedback
       const tempId = `temp-${Date.now()}-${Math.random()}`;
       let optimisticMessage = {
         _id: tempId,
@@ -201,12 +216,15 @@ export default function ChatWindow({ chatId, userId }) {
         createdAt: new Date().toISOString(),
         tempId,
         isNew: true,
-        replyTo: replyingTo ? { _id: replyingTo._id, content: replyingTo.content || "[Media]", sender_id: replyingTo.sender_id } : null,
+        replyTo: replyingTo
+          ? { _id: replyingTo._id, content: replyingTo.content || "[Media]", sender_id: replyingTo.sender_id }
+          : null,
         seenBy: [userId],
       };
 
       setMessages((prev) => [...prev, optimisticMessage]);
 
+      // Prepare form data for API request
       const formData = new FormData();
       if (newMessage.trim()) {
         formData.append("content", newMessage);
@@ -219,6 +237,7 @@ export default function ChatWindow({ chatId, userId }) {
         formData.append("replyTo", replyingTo._id);
       }
 
+      // Send message to server
       const response = await axios.post(`${API_BASE_URL}/api/chats/${chatId}/message`, formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -230,12 +249,14 @@ export default function ChatWindow({ chatId, userId }) {
         },
       });
 
+      // Replace optimistic message with server response
       setMessages((prev) =>
         prev.map((msg) =>
           msg.tempId === tempId ? { ...response.data.message, isNew: true } : msg
         )
       );
 
+      // Reset input fields
       setNewMessage("");
       setFile(null);
       setFilePreview(null);
@@ -256,106 +277,108 @@ export default function ChatWindow({ chatId, userId }) {
     }
   };
 
-  // Edits an existing message
-  const handleEditMessage = useCallback(async (messageId) => {
-    if (!editContent.trim()) {
-      setEditingMessage(null);
-      setEditContent("");
-      return;
-    }
+  // Edit an existing message
+  const handleEditMessage = useCallback(
+    async (messageId) => {
+      if (!editContent.trim()) {
+        setEditingMessage(null);
+        setEditContent("");
+        return;
+      }
 
-    try {
-      setLoading(true);
-      const response = await axios.put(
-        `${API_BASE_URL}/api/chats/${chatId}/messages/${messageId}`,
-        { content: editContent },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      try {
+        setLoading(true);
+        const response = await axios.put(
+          `${API_BASE_URL}/api/chats/${chatId}/messages/${messageId}`,
+          { content: editContent },
+          {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          }
+        );
+
+        const updatedMessage = response.data.message;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === messageId ? { ...msg, ...updatedMessage, isNew: false } : msg
+          )
+        );
+
+        if (socket) {
+          socket.emit("update_message", { chatId, message: updatedMessage });
         }
-      );
 
-      const updatedMessage = response.data.message;
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === messageId ? { ...msg, ...updatedMessage, isNew: false } : msg
-        )
-      );
-
-      if (socket) {
-        socket.emit("update_message", { chatId, message: updatedMessage });
+        setEditingMessage(null);
+        setEditContent("");
+        setMenuVisible(null);
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message;
+        setError(errorMessage || "Failed to edit message");
+      } finally {
+        setLoading(false);
       }
+    },
+    [chatId, editContent, socket]
+  );
 
-      setEditingMessage(null);
-      setEditContent("");
-      setMenuVisible(null);
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message;
-      setError(errorMessage || "Failed to edit message");
-    } finally {
-      setLoading(false);
-    }
-  }, [chatId, editContent, socket]);
+  // Delete a message with confirmation
+  const handleDeleteMessage = useCallback(
+    async (messageId) => {
+      if (!messageId || !messages.find((msg) => msg._id === messageId)) {
+        setError("Invalid message selected");
+        return;
+      }
+      if (!window.confirm("Are you sure you want to delete this message?")) return;
 
-  // Deletes a message with confirmation
-  const handleDeleteMessage = useCallback(async (messageId) => {
-    if (!messageId || !messages.find((msg) => msg._id === messageId)) {
-      setError("Invalid message selected");
-      return;
-    }
-    if (!window.confirm("Are you sure you want to delete this message?")) return;
+      try {
+        // Optimistically mark message as deleted
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === messageId
+              ? {
+                  ...msg,
+                  content: "This message was deleted",
+                  isDeleted: true,
+                  file_url: null,
+                  thumbnail_url: null,
+                  file_type: null,
+                  isNew: false,
+                }
+              : msg
+          )
+        );
 
-    try {
-      // Optimistically update the UI
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === messageId
-            ? {
-                ...msg,
-                content: "This message was deleted",
-                isDeleted: true,
-                file_url: null,
-                thumbnail_url: null,
-                file_type: null,
-                isNew: false,
-              }
-            : msg
-        )
-      );
-
-      // Perform the deletion on the server
-      await axios.delete(`${API_BASE_URL}/api/chats/${chatId}/messages/${messageId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-
-      // Emit socket event to notify other clients
-      if (socket) {
-        socket.emit("delete_message", {
-          chat_id: chatId,
-          _id: messageId,
-          content: "This message was deleted",
-          isDeleted: true,
-          file_url: null,
-          thumbnail_url: null,
-          file_type: null,
+        // Send delete request to server
+        await axios.delete(`${API_BASE_URL}/api/chats/${chatId}/messages/${messageId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
+
+        if (socket) {
+          socket.emit("delete_message", {
+            chat_id: chatId,
+            _id: messageId,
+            content: "This message was deleted",
+            isDeleted: true,
+            file_url: null,
+            thumbnail_url: null,
+            file_type: null,
+          });
+        }
+
+        setMenuVisible(null);
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message;
+        setError(errorMessage || "Failed to delete message");
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === messageId ? { ...msg, isDeleted: false } : msg
+          )
+        );
       }
+    },
+    [chatId, socket, messages]
+  );
 
-      setMenuVisible(null);
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message;
-      setError(errorMessage || "Failed to delete message");
-      // Revert optimistic update on error
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === messageId
-            ? { ...msg, ...originalMessage, isDeleted: false }
-            : msg
-        )
-      );
-    }
-  }, [chatId, socket, messages]);
-
-  // Sets up a reply to a message
+  // Set up a reply to a specific message
   const handleReply = (message) => {
     if (!message._id || message.isDeleted) {
       setError("Cannot reply to a deleted or invalid message");
@@ -366,7 +389,7 @@ export default function ChatWindow({ chatId, userId }) {
     setMenuVisible(null);
   };
 
-  // Scrolls to a specific message with highlight
+  // Scroll to a specific message and highlight it
   const handleJumpToMessage = (messageId) => {
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {
@@ -378,7 +401,7 @@ export default function ChatWindow({ chatId, userId }) {
     }
   };
 
-  // Downloads a PDF file
+  // Download a PDF file
   const handleDownloadPDF = async (fileUrl, fileName) => {
     try {
       const response = await fetch(fileUrl, {
@@ -408,24 +431,33 @@ export default function ChatWindow({ chatId, userId }) {
     }
   };
 
-  // Handles long press on mobile
-  const handleTouchStart = (messageId) => {
-    if (touchTimer.current) clearTimeout(touchTimer.current);
-    touchTimer.current = setTimeout(() => {
+  // Start long-press timer for mobile menu (500ms)
+  const handleLongPressStart = (messageId, e) => {
+    if (!isMobile) return;
+    e.stopPropagation();
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
       setMenuVisible(messageId);
     }, 500);
   };
 
-  const handleTouchEnd = () => {
-    if (touchTimer.current) clearTimeout(touchTimer.current);
+  // Cancel long-press or swipe actions
+  const handleLongPressEnd = (e) => {
+    if (!isMobile) return;
+    e.stopPropagation();
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
-  // Renders message content with reply, edit, or file details
+  // Render message content (text, file, reply, or edit mode)
   const renderMessageContent = (message) => {
     const isEditing = editingMessage?._id === message._id;
 
     return (
       <div className="flex flex-col gap-2">
+        {/* Display reply context if message is a reply */}
         {message.replyTo?._id && (
           <div
             className="bg-gray-100/80 text-gray-600 p-2 rounded-lg text-xs cursor-pointer hover:bg-gray-200 transition-colors"
@@ -446,6 +478,7 @@ export default function ChatWindow({ chatId, userId }) {
           <p className="text-sm italic text-gray-900">This message was deleted</p>
         ) : (
           <>
+            {/* Indicate if message was edited */}
             {message.isEdited && !isEditing && (
               <p className="text-xs text-gray-900 italic mb-1">(Edited)</p>
             )}
@@ -542,6 +575,7 @@ export default function ChatWindow({ chatId, userId }) {
     );
   };
 
+  // Handle error state
   if (error) {
     return (
       <div className="flex items-center justify-center h-full bg-red-50 rounded-xl p-6">
@@ -550,6 +584,7 @@ export default function ChatWindow({ chatId, userId }) {
     );
   }
 
+  // Handle initial loading state
   if (loading && messages.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl p-6">
@@ -558,8 +593,10 @@ export default function ChatWindow({ chatId, userId }) {
     );
   }
 
+  // Main chat window UI
   return (
-    <div className="flex flex-col h-full max-h-[80vh] bg-white rounded-xl shadow-2xl p-4 sm:p-6">
+    <div className=" flex flex-col h-full max-h-[80vh] bg-white rounded-xl shadow-2xl p-4 sm:p-6 ">
+      {/* CSS for animations and styles */}
       <style>
         {`
           .message-enter {
@@ -608,9 +645,17 @@ export default function ChatWindow({ chatId, userId }) {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
           }
+          .slide-up {
+            animation: slide-up 0.3s ease-out;
+          }
+          @keyframes slide-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+          }
         `}
       </style>
-      <div className="flex-1 overflow-y-auto mb-4 sm:mb-6 space-y-4 px-2 sm:px-4">
+      {/* Message list */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden mb-4 sm:mb-6 space-y-4 px-2 sm:px-4">
         {messages.map((message) => (
           <div
             key={message._id || message.tempId}
@@ -619,35 +664,37 @@ export default function ChatWindow({ chatId, userId }) {
               message.sender_id._id === userId ? "justify-end" : "justify-start"
             } ${message.isNew ? "message-enter message-enter-active" : ""}`}
             onTouchStart={(e) => {
-              if (message.sender_id._id === userId && !message.isDeleted) {
-                handleTouchStart(message._id, e);
-              }
-              const startX = e.touches[0].clientX;
-              let isSwiping = false;
-              const handleTouchMove = (moveEvent) => {
-                const deltaX = moveEvent.touches[0].clientX - startX;
-                if (deltaX > 50 && !isSwiping) {
-                  isSwiping = true;
-                  const element = messageRefs.current[message._id || message.tempId];
-                  if (element) {
-                    element.classList.add("replying");
-                    setTimeout(() => element.classList.remove("replying"), 300);
+              if (isMobile && !message.isDeleted) {
+                // Handle long-press and swipe-to-reply for mobile
+                handleLongPressStart(message._id || message.tempId, e);
+                const startX = e.touches[0].clientX;
+                let isSwiping = false;
+                const handleTouchMove = (moveEvent) => {
+                  const deltaX = moveEvent.touches[0].clientX - startX;
+                  if (deltaX > 50 && !isSwiping) {
+                    isSwiping = true;
+                    const element = messageRefs.current[message._id || message.tempId];
+                    if (element) {
+                      element.classList.add("replying");
+                      setTimeout(() => element.classList.remove("replying"), 300);
+                    }
+                    handleReply(message);
+                    document.removeEventListener("touchmove", handleTouchMove);
                   }
-                  handleReply(message);
-                  document.removeEventListener("touchmove", handleTouchMove);
-                }
-              };
-              document.addEventListener("touchmove", handleTouchMove);
-              document.addEventListener(
-                "touchend",
-                () => {
-                  document.removeEventListener("touchmove", handleTouchMove);
-                  handleTouchEnd();
-                },
-                { once: true }
-              );
+                };
+                document.addEventListener("touchmove", handleTouchMove);
+                document.addEventListener(
+                  "touchend",
+                  () => {
+                    document.removeEventListener("touchmove", handleTouchMove);
+                    handleLongPressEnd(e);
+                  },
+                  { once: true }
+                );
+              }
             }}
-            onTouchCancel={handleTouchEnd}
+            onTouchEnd={handleLongPressEnd}
+            onTouchCancel={handleLongPressEnd}
           >
             <div
               className={`flex items-start gap-3 max-w-[80%] sm:max-w-[65%] p-4 rounded-2xl shadow-md relative group ${
@@ -656,8 +703,24 @@ export default function ChatWindow({ chatId, userId }) {
                   : "bg-gray-50 text-gray-800 border border-gray-200"
               }`}
             >
-              <div className="w-8 h-8 rounded-full avatar flex items-center justify-center text-white font-semibold text-sm">
-                {message.sender_id.name?.[0]?.toUpperCase() || "?"}
+              {/* Sender avatar */}
+              <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
+                {message.sender_id.profile_image ? (
+                  <img
+                    src={message.sender_id.profile_image}
+                    alt={message.sender_id.name || "User"}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.outerHTML = `<span class="w-8 h-8 rounded-full avatar flex items-center justify-center text-white font-semibold text-sm">${
+                        message.sender_id.name?.[0]?.toUpperCase() || "?"
+                      }</span>`;
+                    }}
+                  />
+                ) : (
+                  <span className="w-8 h-8 rounded-full avatar flex items-center justify-center text-white font-semibold text-sm">
+                    {message.sender_id.name?.[0]?.toUpperCase() || "?"}
+                  </span>
+                )}
               </div>
               <div className="flex-1">
                 <p className="text-xs font-semibold mb-2">{message.sender_id.name || "Unknown User"}</p>
@@ -669,6 +732,7 @@ export default function ChatWindow({ chatId, userId }) {
                       minute: "2-digit",
                     })}
                   </p>
+                  {/* Display seen status for own messages */}
                   {message.sender_id._id === userId && !message.isDeleted && (
                     <div className="flex items-center gap-1 ml-20">
                       {message.seenBy?.length === 1 && (
@@ -720,14 +784,56 @@ export default function ChatWindow({ chatId, userId }) {
                   )}
                 </div>
               </div>
-              {message.sender_id._id === userId && !message.isDeleted && message._id && (
+              {/* Mobile bottom sheet menu */}
+              {isMobile && menuVisible === (message._id || message.tempId) && !message.isDeleted && (
+                <div
+                  ref={menuRef}
+                  className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6 z-50 slide-up max-h-[50vh]"
+                >
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Message Options</h3>
+                  <button
+                    onClick={() => handleReply(message)}
+                    className="w-full px-4 py-3 mb-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1565c0] transition-colors duration-200 font-medium"
+                  >
+                    Reply
+                  </button>
+                  {message.content && !message.file_url && message.sender_id._id === userId && (
+                    <button
+                      onClick={() => {
+                        setEditingMessage(message);
+                        setEditContent(message.content || "");
+                        setMenuVisible(null);
+                      }}
+                      className="w-full px-4 py-3 mb-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1565c0] transition-colors duration-200 font-medium"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {message.sender_id._id === userId && (
+                    <button
+                      onClick={() => handleDeleteMessage(message._id)}
+                      className="w-full px-4 py-3 mb-2 bg-[#e63946] text-white rounded-lg hover:bg-[#d32f2f] transition-colors duration-200 font-medium"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setMenuVisible(null)}
+                    className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+              {/* Desktop dropdown menu */}
+              {!isMobile && message.sender_id._id === userId && !message.isDeleted && message._id && (
                 <div className="absolute top-2 right-2" ref={menuRef}>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent propagation to avoid reporting.js interference
+                      e.stopPropagation();
                       setMenuVisible(menuVisible === message._id ? null : message._id);
                     }}
-                    onMouseDown={(e) => e.stopPropagation()} // Stop mousedown to avoid reporting.js error
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="cursor-pointer p-1 text-gray-200 hover:text-white rounded-full"
                     aria-label="Message options"
                   >
@@ -824,6 +930,7 @@ export default function ChatWindow({ chatId, userId }) {
                   )}
                 </div>
               )}
+              {/* Reply button (visible on hover) */}
               {!message.isDeleted && (
                 <button
                   onClick={() => handleReply(message)}
@@ -850,6 +957,7 @@ export default function ChatWindow({ chatId, userId }) {
         ))}
         <div ref={messagesEndRef} />
       </div>
+      {/* Reply preview */}
       {replyingTo && (
         <div className="mb-4 p-3 bg-gray-100 rounded-lg flex items-center gap-3 animate-slide-up fade-in">
           <div className="flex-1">
@@ -882,6 +990,7 @@ export default function ChatWindow({ chatId, userId }) {
           </button>
         </div>
       )}
+      {/* File preview */}
       {filePreview && (
         <div className="mb-4 p-3 bg-gray-100 rounded-lg flex items-center gap-3 animate-slide-up fade-in">
           {filePreview.type === "application/pdf" ? (
@@ -911,12 +1020,13 @@ export default function ChatWindow({ chatId, userId }) {
           <div className="flex-1 text-sm text-gray-700 truncate">{filePreview.name}</div>
           <button
             onClick={handleRemoveFile}
-            className="cursor-pointer px-3 py-1 bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors text-sm"
+            className="cursor-pointer px-3 py-1 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors text-sm"
           >
             Remove
           </button>
         </div>
       )}
+      {/* Upload progress bar */}
       {uploadProgress > 0 && uploadProgress < 100 && (
         <div className="mb-4 animate-slide-up fade-in">
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -925,6 +1035,7 @@ export default function ChatWindow({ chatId, userId }) {
           <p className="text-xs text-gray-600 mt-1">Uploading: {uploadProgress}%</p>
         </div>
       )}
+      {/* Message input form */}
       <form
         onSubmit={handleSendMessage}
         className="flex flex-col sm:flex-row gap-3 border-t border-gray-200 pt-4"
@@ -935,9 +1046,10 @@ export default function ChatWindow({ chatId, userId }) {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 bg-transparent outline-none text-sm sm:text-base placeholder-gray-500"
+            className="flex-1 bg-transparent outline-none text-sm sm:text-base placeholder-gray-500 text-black"
             disabled={loading}
           />
+          {/* File upload button */}
           <label className="flex items-center cursor-pointer">
             <input
               type="file"

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
+import { QRCodeCanvas } from 'qrcode.react';
 import { API_BASE_URL } from "../../../api";
 import DocPlaceHolder from "/docPic.png"
 
@@ -18,6 +19,7 @@ export default function HealthcareAppointments() {
   const [selectedDate, setSelectedDate] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [statusFilter, setStatusFilter] = useState("");
+  const [buttonLoading, setButtonLoading] = useState({});
   const navigate = useNavigate();
 
   // Fetch appointments on component mount
@@ -26,12 +28,11 @@ export default function HealthcareAppointments() {
       setLoading(true);
       const token = localStorage.getItem("token");
       if (!token) {
-        navigate("/login"); // Redirect to login if no token
+        navigate("/login");
         return;
       }
 
       try {
-        // Fetch appointments from API
         const response = await fetch(`${API_BASE_URL}/api/healthcare/appointments`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -40,7 +41,6 @@ export default function HealthcareAppointments() {
         });
         const data = await response.json();
         if (response.ok) {
-          // Sort appointments by date (newest first)
           const sortedAppointments = data.sort((a, b) => new Date(b.date) - new Date(a.date));
           setAppointments(sortedAppointments);
           setFilteredAppointments(sortedAppointments);
@@ -49,7 +49,6 @@ export default function HealthcareAppointments() {
         }
       } catch (err) {
         setError(err.message);
-        // Handle unauthorized error
         if (err.message.includes("Unauthorized")) {
           localStorage.removeItem("token");
           navigate("/login");
@@ -62,30 +61,26 @@ export default function HealthcareAppointments() {
     fetchAppointments();
   }, [navigate]);
 
-  // Filter and sort appointments based on search, date, status, and sort order
+  // Filter and sort appointments
   useEffect(() => {
     let result = [...appointments];
 
-    // Filter by search query
     if (searchQuery) {
       result = result.filter((appt) =>
-        (appt.patient_id?.name || "User deleted").toLowerCase().includes(searchQuery.toLowerCase())
+        (appt.patient_id?.name || "Unknown").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Filter by selected date
     if (selectedDate) {
       result = result.filter(
         (appt) => new Date(appt.date).toLocaleDateString() === new Date(selectedDate).toLocaleDateString()
       );
     }
 
-    // Filter by status
     if (statusFilter) {
       result = result.filter((appt) => appt.status === statusFilter);
     }
 
-    // Sort appointments by date
     result.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -98,6 +93,7 @@ export default function HealthcareAppointments() {
   // Update appointment status
   const handleStatusUpdate = async (appointmentId, newStatus) => {
     const token = localStorage.getItem("token");
+    setButtonLoading((prev) => ({ ...prev, [`${appointmentId}-${newStatus}`]: true }));
     try {
       const response = await fetch(`${API_BASE_URL}/api/healthcare/appointments/${appointmentId}`, {
         method: "PUT",
@@ -109,10 +105,9 @@ export default function HealthcareAppointments() {
       });
       const data = await response.json();
       if (response.ok) {
-        // Update appointment status in state
         setAppointments((prev) =>
           prev.map((appt) =>
-            appt._id === appointmentId ? { ...appt, status: newStatus, qrCodeUrl: data.appointment.qrCodeUrl } : appt
+            appt._id === appointmentId ? { ...appt, status: newStatus } : appt
           )
         );
       } else {
@@ -120,6 +115,8 @@ export default function HealthcareAppointments() {
       }
     } catch (err) {
       setError(err.message);
+    } finally {
+      setButtonLoading((prev) => ({ ...prev, [`${appointmentId}-${newStatus}`]: false }));
     }
   };
 
@@ -165,22 +162,154 @@ export default function HealthcareAppointments() {
     fetchPatientProfile(patientId);
   };
 
-  // Download patient's medical state as PDF
+  // Download patient's full profile as PDF
   const downloadMedicalStateAsPDF = () => {
-    if (!selectedPatient || !selectedPatient.medical_state) {
-      alert("No medical state available to download.");
+    if (!selectedPatient) {
+      alert("No patient profile available to download.");
       return;
     }
 
     const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Patient Medical State", 20, 20);
+    
+    // Header
+    doc.setFillColor(33, 150, 243); // Blue background
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255); // White text
+    doc.setFont("helvetica", "bold");
+    doc.text("Patient Profile", 20, 20);
+
+    // Content border
+    doc.setDrawColor(33, 150, 243);
+    doc.setLineWidth(0.5);
+    doc.rect(10, 40, 190, 247, 'S');
+
+    // Patient details
     doc.setFontSize(12);
-    doc.text(`Name: ${selectedPatient.user_id?.name || "User deleted"}`, 20, 40);
-    const medicalState = selectedPatient.medical_state || "Not set";
-    const splitText = doc.splitTextToSize(medicalState, 170);
-    doc.text(splitText, 20, 60);
-    const fileName = `${selectedPatient.user_id?.name || "User_deleted"}_Medical_State.pdf`;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    
+    let yOffset = 50;
+    const lineHeight = 10;
+    const labelWidth = 50;
+    const valueWidth = 130;
+
+    const fields = [
+      { label: "Name", value: selectedPatient.user_id?.name || "Not provided" },
+      { label: "Email", value: selectedPatient.user_id?.email || "Not provided" },
+      { label: "Phone Number", value: selectedPatient.user_id?.phone_number || "Not provided" },
+      { label: "Gender", value: selectedPatient.gender || "Not set" },
+      { label: "Height", value: selectedPatient.height ? `${selectedPatient.height} cm` : "Not set" },
+      { label: "Weight", value: selectedPatient.weight ? `${selectedPatient.weight} kg` : "Not set" },
+      { label: "Blood Type", value: selectedPatient.blood_type || "Not set" },
+      {
+        label: "Account Status",
+        value:
+          selectedPatient.user_id?.isBanned === undefined
+            ? "Unknown"
+            : selectedPatient.user_id.isBanned
+            ? "Banned"
+            : "Active",
+      },
+      { label: "Medical State", value: selectedPatient.medical_state || "Not set" },
+    ];
+
+    fields.forEach((field, index) => {
+      // Alternating row background
+      if (index % 2 === 0) {
+        doc.setFillColor(240, 248, 255); // Light blue
+        doc.rect(15, yOffset - 5, 180, lineHeight, 'F');
+      }
+
+      // Label
+      doc.setFont("helvetica", "bold");
+      doc.text(field.label + ":", 15, yOffset);
+
+      // Value
+      doc.setFont("helvetica", "normal");
+      const splitValue = doc.splitTextToSize(field.value, valueWidth);
+      doc.text(splitValue, 65, yOffset);
+      yOffset += Math.max(splitValue.length, 1) * lineHeight;
+    });
+
+    // Footer
+    doc.setFillColor(33, 150, 243);
+    doc.rect(0, 287, 210, 10, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 20, 293);
+    doc.text("Healthcare System", 170, 293);
+
+    const fileName = `${selectedPatient.user_id?.name || "Unknown"}_Profile.pdf`;
+    doc.save(fileName);
+  };
+
+  // Download appointment details as PDF
+  const downloadAppointmentPDF = (appointment) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFillColor(33, 150, 243); // Blue background
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255); // White text
+    doc.setFont("helvetica", "bold");
+    doc.text("Appointment Details", 20, 20);
+
+    // Content border
+    doc.setDrawColor(33, 150, 243);
+    doc.setLineWidth(0.5);
+    doc.rect(10, 40, 190, 247, 'S');
+
+    // Appointment details
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    
+    let yOffset = 50;
+    const lineHeight = 10;
+    const labelWidth = 50;
+    const valueWidth = 130;
+
+    const fields = [
+      { label: "Patient Name", value: appointment.patient_id?.name || "Unknown" },
+      { label: "Date", value: new Date(appointment.date).toLocaleDateString() },
+      {
+        label: "Time",
+        value: appointment.time || new Date(appointment.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+      { label: "Duration", value: `${appointment.duration || 60} minutes` },
+      { label: "Status", value: appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) },
+      { label: "Message", value: appointment.message || "No message provided" },
+    ];
+
+    fields.forEach((field, index) => {
+      // Alternating row background
+      if (index % 2 === 0) {
+        doc.setFillColor(240, 248, 255); // Light blue
+        doc.rect(15, yOffset - 5, 180, lineHeight, 'F');
+      }
+
+      // Label
+      doc.setFont("helvetica", "bold");
+      doc.text(field.label + ":", 15, yOffset);
+
+      // Value
+      doc.setFont("helvetica", "normal");
+      const splitValue = doc.splitTextToSize(field.value, valueWidth);
+      doc.text(splitValue, 65, yOffset);
+      yOffset += Math.max(splitValue.length, 1) * lineHeight;
+    });
+
+    // Footer
+    doc.setFillColor(33, 150, 243);
+    doc.rect(0, 287, 210, 10, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 20, 293);
+    doc.text("Healthcare System", 170, 293);
+
+    const fileName = `${appointment.patient_id?.name || "Unknown"}_Appointment_${new Date(appointment.date).toLocaleDateString().replace(/\//g, "-")}.pdf`;
     doc.save(fileName);
   };
 
@@ -204,7 +333,7 @@ export default function HealthcareAppointments() {
     );
   }
 
-  // Main UI with search, filters, and appointment cards
+  // Main UI
   return (
     <div className="min-h-screen bg-[#E1EEFF] p-6">
       <div className="max-w-6xl mx-auto">
@@ -239,7 +368,7 @@ export default function HealthcareAppointments() {
           </div>
         </div>
 
-        {/* Filters for date, status, and sort order */}
+        {/* Filters */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <input
             type="date"
@@ -284,9 +413,69 @@ export default function HealthcareAppointments() {
                 key={appointment._id}
                 className="bg-white rounded-2xl shadow-lg p-6 transition-transform duration-300 hover:shadow-xl hover:scale-[1.02]"
               >
-                <div className="flex flex-col md:flex-row justify-between gap-6">
-                  {/* Appointment Info */}
-                  <div className="flex-1 space-y-2">
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Profile Picture and QR Code (Top on Mobile) */}
+                  <div className="flex flex-col items-center space-y-3 text-center">
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => handlePatientClick(appointment.patient_id?._id)}
+                    >
+                      {appointment.patient_id?.profile_image ? (
+                        <img
+                          src={appointment.patient_id.profile_image}
+                          alt={`${appointment.patient_id.name || "Unknown"}'s profile`}
+                          className="w-20 h-20 rounded-full object-cover border-2 border-indigo-200"
+                          onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                          <img
+                            src={DocPlaceHolder}
+                            alt="Unknown profile"
+                            className="w-20 h-20 rounded-full object-cover border-2 border-indigo-200"
+                            onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <h3
+                      className="text-lg font-semibold text-indigo-600 cursor-pointer hover:underline"
+                      onClick={() => handlePatientClick(appointment.patient_id?._id)}
+                    >
+                      {appointment.patient_id?.name || "Unknown"}
+                    </h3>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        appointment.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : appointment.status === "active"
+                          ? "bg-green-100 text-green-800"
+                          : appointment.status === "completed"
+                          ? "bg-blue-100 text-blue-800"
+                          : appointment.status === "rejected"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                    </span>
+                    {(appointment.status === "active" || appointment.status === "completed") && (
+                      <div className="mt-4">
+                        <p className="text-gray-700 text-sm font-semibold mb-2 text-center">
+                          Appointment QR Code :
+                        </p>
+                        <QRCodeCanvas
+                        className="ml-3"
+                          value={`${window.location.origin}/download-appointment/${appointment._id}`}
+                          size={128}
+                          level="H"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Appointment Info (Below on Mobile, Left on Desktop) */}
+                  <div className="flex-1 space-y-2 md:order-first">
                     <p className="bg-indigo-50 p-2 rounded-md border border-indigo-200">
                       <strong>Date:</strong> {new Date(appointment.date).toLocaleDateString()}
                     </p>
@@ -304,99 +493,47 @@ export default function HealthcareAppointments() {
                     <p className="bg-indigo-50 p-2 rounded-md border border-indigo-200">
                       <strong>Message:</strong> {appointment.message || "No message provided"}
                     </p>
-                    {/* Status Update Buttons */}
                     <div className="flex flex-wrap gap-3 pt-2">
                       {appointment.status === "pending" && (
                         <>
                           <button
                             onClick={() => handleStatusUpdate(appointment._id, "active")}
-                            className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer"
+                            disabled={buttonLoading[`${appointment._id}-active`]}
+                            className={`px-4 py-2 rounded-lg cursor-pointer ${
+                              buttonLoading[`${appointment._id}-active`]
+                                ? "bg-green-400"
+                                : "bg-green-600 hover:bg-green-700"
+                            } text-white`}
                           >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleStatusUpdate(appointment._id, "completed")}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg cursor-pointer"
-                          >
-                            Complete
+                            {buttonLoading[`${appointment._id}-active`] ? "Approving..." : "Approve"}
                           </button>
                           <button
                             onClick={() => handleStatusUpdate(appointment._id, "rejected")}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg cursor-pointer"
+                            disabled={buttonLoading[`${appointment._id}-rejected`]}
+                            className={`px-4 py-2 rounded-lg cursor-pointer ${
+                              buttonLoading[`${appointment._id}-rejected`]
+                                ? "bg-red-400"
+                                : "bg-red-600 hover:bg-red-700"
+                            } text-white`}
                           >
-                            Reject
+                            {buttonLoading[`${appointment._id}-rejected`] ? "Rejecting..." : "Reject"}
                           </button>
                         </>
                       )}
                       {appointment.status === "active" && (
                         <button
                           onClick={() => handleStatusUpdate(appointment._id, "completed")}
-                          className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg"
+                          disabled={buttonLoading[`${appointment._id}-completed`]}
+                          className={`w-full px-4 py-2 rounded-lg cursor-pointer ${
+                            buttonLoading[`${appointment._id}-completed`]
+                              ? "bg-blue-400"
+                              : "bg-blue-600 hover:bg-blue-700"
+                          } text-white`}
                         >
-                          Mark Completed
+                          {buttonLoading[`${appointment._id}-completed`] ? "Completing..." : "Mark Completed"}
                         </button>
                       )}
                     </div>
-                  </div>
-
-                  {/* Patient Info and QR Code */}
-                  <div className="flex flex-col items-center md:w-1/3 space-y-3 text-center">
-                    <div
-                      className="cursor-pointer"
-                      onClick={() => handlePatientClick(appointment.patient_id._id)}
-                    >
-                      {appointment.patient_id.profile_image ? (
-                        <img
-                          src={appointment.patient_id.profile_image}
-                          alt={`${appointment.patient_id.name}'s profile`}
-                          className="w-20 h-20 rounded-full object-cover border-2 border-indigo-200"
-                          onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
-                        />
-                      ) : (
-                        <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                          <img
-                          src={DocPlaceHolder}
-                          alt={`${appointment.patient_id.name}'s profile`}
-                          className="w-20 h-20 rounded-full object-cover border-2 border-indigo-200"
-                          onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
-                        />
-                        </div>
-                      )}
-                    </div>
-                    <h3
-                      className="text-lg font-semibold text-indigo-600 cursor-pointer hover:underline"
-                      onClick={() => handlePatientClick(appointment.patient_id._id)}
-                    >
-                      {appointment.patient_id.name}
-                    </h3>
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        appointment.status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : appointment.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : appointment.status === "completed"
-                          ? "bg-blue-100 text-blue-800"
-                          : appointment.status === "rejected"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                    </span>
-                    {(appointment.status === "active" || appointment.status === "completed") &&
-                      appointment.qrCodeUrl && (
-                        <div className="mt-4">
-                          <p className="text-gray-700 text-sm font-semibold mb-2 text-center">
-                            Appointment QR Code:
-                          </p>
-                          <img
-                            src={appointment.qrCodeUrl}
-                            alt="Appointment QR Code"
-                            className="ml-3 w-32 h-32 object-contain"
-                          />
-                        </div>
-                      )}
                   </div>
                 </div>
               </div>
@@ -431,23 +568,23 @@ export default function HealthcareAppointments() {
                   {selectedPatient.user_id?.profile_image ? (
                     <img
                       src={selectedPatient.user_id.profile_image}
-                      alt={`${selectedPatient.user_id.name}'s profile`}
+                      alt={`${selectedPatient.user_id.name || "Unknown"}'s profile`}
                       className="w-20 h-20 rounded-full object-cover border-4 border-indigo-200 shadow-md"
                       onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium shadow-md">
                       <img
-                      src={DocPlaceHolder}
-                      alt={`${selectedPatient.user_id.name}'s profile`}
-                      className="w-20 h-20 rounded-full object-cover border-4 border-indigo-200 shadow-md"
-                      onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
-                    />
+                        src={DocPlaceHolder}
+                        alt="Unknown profile"
+                        className="w-20 h-20 rounded-full object-cover border-4 border-indigo-200 shadow-md"
+                        onError={(e) => (e.target.src = "https://via.placeholder.com/80?text=Image+Not+Found")}
+                      />
                     </div>
                   )}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800 text-center">
-                  {selectedPatient.user_id?.name || "User deleted"}
+                  {selectedPatient.user_id?.name || "Unknown"}
                 </h3>
                 <div className="text-gray-700 text-sm">
                   <p><strong>Email:</strong> {selectedPatient.user_id?.email || "Not provided"}</p>

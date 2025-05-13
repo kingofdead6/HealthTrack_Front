@@ -1,181 +1,202 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../../api";
-import axios from "axios";
+import jsPDF from "jspdf";
+import { QRCodeCanvas } from 'qrcode.react';
 
 // PatientAppointments component to manage and display patient appointments
 export default function PatientAppointments() {
   // State declarations for managing appointments and UI
-  const [appointments, setAppointments] = useState([]); // Store all fetched appointments
-  const [filteredAppointments, setFilteredAppointments] = useState([]); // Store filtered appointments
-  const [loading, setLoading] = useState(false); // Indicate loading state during API fetch
-  const [error, setError] = useState(""); // Store error messages
-  const [ratingData, setRatingData] = useState({ appointmentId: null, rating: 0, comment: "" }); // Store rating form data
-  const [showRatingModal, setShowRatingModal] = useState(false); // Toggle rating modal
-  const [searchQuery, setSearchQuery] = useState(""); // Store search input query
-  const [selectedDate, setSelectedDate] = useState(""); // Store selected date filter
-  const [sortOrder, setSortOrder] = useState("newest"); // Store sort order (newest/oldest)
-  const [statusFilter, setStatusFilter] = useState(""); // Store status filter
-  const [patient, setPatient] = useState(null); // Store patient profile data
-  const navigate = useNavigate(); // Enable programmatic navigation
+  const [appointments, setAppointments] = useState([]);
+  const [filteredAppointments, setFilteredAppointments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [ratingData, setRatingData] = useState({ appointmentId: null, rating: 0, comment: "" });
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [statusFilter, setStatusFilter] = useState("");
+  // eslint-disable-next-line no-unused-vars
+  const [patient, setPatient] = useState(null);
+  const navigate = useNavigate();
 
   // Fetch appointments and patient profile on component mount
   useEffect(() => {
-    // Async function to fetch patient appointments
     const fetchAppointments = async () => {
-      setLoading(true); // Set loading state to true
-      const token = localStorage.getItem("token"); // Retrieve auth token
+      setLoading(true);
+      const token = localStorage.getItem("token");
       if (!token) {
-        navigate("/login"); // Redirect to login if no token
+        navigate("/login");
         return;
       }
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/patients/appointments`, {
           headers: {
-            Authorization: `Bearer ${token}`, // Include auth token
-            "Content-Type": "application/json", // Specify JSON content type
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
         });
-        const data = await response.json(); // Parse response JSON
+        const data = await response.json();
         if (response.ok) {
-          setAppointments(data); // Update appointments state
-          setFilteredAppointments(data); // Initialize filtered appointments
+          setAppointments(data);
+          setFilteredAppointments(data);
         } else {
-          throw new Error(data.message || "Failed to fetch appointments"); // Throw error on failure
+          throw new Error(data.message || "Failed to fetch appointments");
         }
       } catch (err) {
-        setError(err.message); // Set error message
+        setError(err.message);
       } finally {
-        setLoading(false); // Reset loading state
+        setLoading(false);
       }
     };
 
-    // Async function to fetch patient profile
     const fetchPatientProfile = async () => {
-      const token = localStorage.getItem("token"); // Retrieve auth token
+      const token = localStorage.getItem("token");
       if (!token) {
-        navigate("/login"); // Redirect to login if no token
+        navigate("/login");
         return;
       }
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/patients/profile`, {
           headers: {
-            Authorization: `Bearer ${token}`, // Include auth token
-            "Content-Type": "application/json", // Specify JSON content type
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
         });
-        const data = await response.json(); // Parse response JSON
+        const data = await response.json();
         if (response.ok) {
-          setPatient(data.patient); // Update patient state
+          setPatient(data.patient);
         } else {
-          throw new Error(data.message || "Failed to fetch patient profile"); // Throw error on failure
+          throw new Error(data.message || "Failed to fetch patient profile");
         }
       } catch (err) {
-        setError(err.message); // Set error message
+        setError(err.message);
       }
     };
 
-    fetchAppointments(); // Call fetch appointments
-    fetchPatientProfile(); // Call fetch patient profile
-  }, [navigate]); // Dependency for navigation changes
+    fetchAppointments();
+    fetchPatientProfile();
+  }, [navigate]);
 
-  // Filter and sort appointments based on search, date, status, and sort order
+  // Filter and sort appointments
   useEffect(() => {
-    let result = [...appointments]; // Create a copy of appointments
+    let result = [...appointments];
 
-    // Apply search query filter
     if (searchQuery) {
       result = result.filter((appt) =>
-        (appt.user_id?.name || "Unknown").toLowerCase().includes(searchQuery.toLowerCase()) // Search by provider name
+        (appt.user_id?.name || "Unknown").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Apply date filter
     if (selectedDate) {
       result = result.filter(
-        (appt) => new Date(appt.date).toLocaleDateString() === new Date(selectedDate).toLocaleDateString() // Filter by selected date
+        (appt) => new Date(appt.date).toLocaleDateString() === new Date(selectedDate).toLocaleDateString()
       );
     }
 
-    // Apply status filter
     if (statusFilter) {
-      result = result.filter((appt) => appt.status === statusFilter); // Filter by status
+      result = result.filter((appt) => appt.status === statusFilter);
     }
 
-    // Sort appointments by date
     result.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      return sortOrder === "newest" ? dateB - dateA : dateA - dateB; // Sort newest or oldest first
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
     });
 
-    setFilteredAppointments(result); // Update filtered appointments
-  }, [appointments, searchQuery, selectedDate, sortOrder, statusFilter]); // Dependencies for filtering/sorting
+    setFilteredAppointments(result);
+  }, [appointments, searchQuery, selectedDate, sortOrder, statusFilter]);
 
-  // Handle downloading appointment PDF with QR code
-  const handleDownloadAppointmentPDF = async (appointment) => {
-    const token = localStorage.getItem("token"); // Retrieve auth token
-    if (!token) {
-      navigate("/login"); // Redirect to login if no token
-      return;
-    }
+  // Handle downloading appointment PDF
+  const handleDownloadAppointmentPDF = (appointment) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFillColor(33, 150, 243); // Blue background
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255); // White text
+    doc.setFont("helvetica", "bold");
+    doc.text("Appointment Details", 20, 20);
 
-    try {
-      // Prepare QR code data
-      const qrData = JSON.stringify({
-        patientName: patient?.name || "Unknown",
-        doctorName: appointment.user_id.name,
-        date: new Date(appointment.date).toLocaleDateString(),
-        time: appointment.time,
-        appointmentId: appointment._id,
-      });
+    // Content border
+    doc.setDrawColor(33, 150, 243);
+    doc.setLineWidth(0.5);
+    doc.rect(10, 40, 190, 247, 'S');
 
-      // Request PDF from API
-      const response = await axios.post(
-        `${API_BASE_URL}/api/healthcare/qr-code/validate`,
-        { qrData },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Include auth token
-            "Content-Type": "application/json", // Specify JSON content type
-          },
-          responseType: "blob", // Expect binary response
-        }
-      );
+    // Appointment details
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    
+    let yOffset = 50;
+    const lineHeight = 10;
+    const valueWidth = 130;
 
-      // Create and trigger download of PDF
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `appointment_${appointment._id}_${patient?.name || "patient"}.pdf`; // Set file name
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl); // Clean up URL
-    } catch (error) {
-      setError(error.response?.data?.message || "Failed to download PDF"); // Set error message
-    }
+    const fields = [
+      { label: "Provider Name", value: appointment.user_id?.name || "Unknown", highlight: true },
+      { label: "Date", value: new Date(appointment.date).toLocaleDateString() },
+      {
+        label: "Time",
+        value: appointment.time || new Date(appointment.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+      { label: "Duration", value: `${appointment.duration || 60} minutes` },
+      { label: "Status", value: appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) },
+      { label: "Message", value: appointment.message || "No message provided" },
+    ];
+
+    fields.forEach((field, index) => {
+      // Alternating or highlighted row background
+      if (field.highlight) {
+        doc.setFillColor(227, 242, 253); // Light blue (#E3F2FD)
+        doc.rect(15, yOffset - 5, 180, lineHeight, 'F');
+      } else if (index % 2 === 0) {
+        doc.setFillColor(240, 248, 255); // Light blue (#F0F8FF)
+        doc.rect(15, yOffset - 5, 180, lineHeight, 'F');
+      }
+
+      // Label
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(field.highlight ? 14 : 12);
+      doc.text(field.label + ":", 15, yOffset);
+
+      // Value
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(field.highlight ? 14 : 12);
+      const splitValue = doc.splitTextToSize(field.value, valueWidth);
+      doc.text(splitValue, 65, yOffset);
+      yOffset += Math.max(splitValue.length, 1) * lineHeight;
+    });
+
+    // Footer
+    doc.setFillColor(33, 150, 243);
+    doc.rect(0, 287, 210, 10, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 20, 293);
+    doc.text("Healthcare System", 170, 293);
+
+    const fileName = `Appointment_${new Date(appointment.date).toLocaleDateString().replace(/\//g, "-")}.pdf`;
+    doc.save(fileName);
   };
 
   // Handle submission of appointment rating
   const handleRatingSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission
-    const token = localStorage.getItem("token"); // Retrieve auth token
+    e.preventDefault();
+    const token = localStorage.getItem("token");
     try {
       const response = await fetch(`${API_BASE_URL}/api/patients/appointments/rate`, {
-        method: "POST", // Use POST to submit rating
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`, // Include auth token
-          "Content-Type": "application/json", // Specify JSON content type
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(ratingData), // Send rating data
+        body: JSON.stringify(ratingData),
       });
-      const data = await response.json(); // Parse response JSON
+      const data = await response.json();
       if (response.ok) {
-        // Update appointment with new rating and comment
         setAppointments((prev) =>
           prev.map((appt) =>
             appt._id === ratingData.appointmentId
@@ -183,19 +204,19 @@ export default function PatientAppointments() {
               : appt
           )
         );
-        setShowRatingModal(false); // Close modal
-        setRatingData({ appointmentId: null, rating: 0, comment: "" }); // Reset rating form
+        setShowRatingModal(false);
+        setRatingData({ appointmentId: null, rating: 0, comment: "" });
       } else {
-        throw new Error(data.message || "Failed to submit rating"); // Throw error on failure
+        throw new Error(data.message || "Failed to submit rating");
       }
     } catch (err) {
-      setError(err.message); // Set error message
+      setError(err.message);
     }
   };
 
   // Handle star rating selection
   const handleStarClick = (rating) => {
-    setRatingData({ ...ratingData, rating }); // Update rating in form data
+    setRatingData({ ...ratingData, rating });
   };
 
   // Render star rating UI
@@ -207,11 +228,11 @@ export default function PatientAppointments() {
           key={i}
           className={`w-5 h-5 ${
             i <= rating ? "text-yellow-400 fill-current" : "text-gray-500 fill-current"
-          } ${interactive ? "cursor-pointer hover:text-yellow-500" : ""}`} // Conditional styling
-          onClick={interactive ? () => handleStarClick(i) : undefined} // Enable click for interactive stars
+          } ${interactive ? "cursor-pointer hover:text-yellow-500" : ""}`}
+          onClick={interactive ? () => handleStarClick(i) : undefined}
           viewBox="0 0 24 24"
         >
-          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" /> {/* Star shape */}
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
         </svg>
       );
     }
@@ -238,7 +259,7 @@ export default function PatientAppointments() {
     );
   }
 
-  // Main UI for appointments
+  // Main UI
   return (
     <div className="min-h-screen bg-[#e1eeff1b] p-8">
       <div className="max-w-6xl mx-auto">
@@ -248,18 +269,18 @@ export default function PatientAppointments() {
             type="text"
             placeholder="Search by provider name..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)} // Update search query
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full sm:w-1/4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-300 placeholder-gray-400"
           />
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)} // Update date filter
+            onChange={(e) => setSelectedDate(e.target.value)}
             className="cursor-pointer w-full sm:w-1/4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-300"
           />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)} // Update status filter
+            onChange={(e) => setStatusFilter(e.target.value)}
             className="cursor-pointer w-full sm:w-1/4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-300"
           >
             <option value="">All Statuses</option>
@@ -270,7 +291,7 @@ export default function PatientAppointments() {
           </select>
           <select
             value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)} // Update sort order
+            onChange={(e) => setSortOrder(e.target.value)}
             className="cursor-pointer w-full sm:w-1/4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-300"
           >
             <option value="newest">Newest First</option>
@@ -284,7 +305,7 @@ export default function PatientAppointments() {
             <p className="text-gray-600 text-lg font-medium">
               {searchQuery || selectedDate || statusFilter
                 ? "No matching appointments found."
-                : "No appointments found. Book one today!"} {/* Message for no results */}
+                : "No appointments found. Book one today!"}
             </p>
           </div>
         ) : (
@@ -316,7 +337,7 @@ export default function PatientAppointments() {
                           new Date(appointment.date).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
-                          })} {/* Fallback to date if no time */}
+                          })}
                       </p>
                     </div>
                     <div className="bg-indigo-50 p-3 rounded-md border border-indigo-100">
@@ -327,7 +348,7 @@ export default function PatientAppointments() {
                     </div>
                     {(appointment.status === "active" || appointment.status === "completed") && (
                       <button
-                        onClick={() => handleDownloadAppointmentPDF(appointment)} // Download PDF
+                        onClick={() => handleDownloadAppointmentPDF(appointment)}
                         className="cursor-pointer mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300 font-medium shadow-sm"
                       >
                         Download PDF
@@ -336,8 +357,8 @@ export default function PatientAppointments() {
                     {appointment.status === "completed" && !appointment.rating && (
                       <button
                         onClick={() => {
-                          setRatingData({ ...ratingData, appointmentId: appointment._id }); // Set appointment ID for rating
-                          setShowRatingModal(true); // Open rating modal
+                          setRatingData({ ...ratingData, appointmentId: appointment._id });
+                          setShowRatingModal(true);
                         }}
                         className="cursor-pointer mt-2 w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300 font-medium shadow-sm"
                       >
@@ -356,31 +377,33 @@ export default function PatientAppointments() {
                           : appointment.status === "rejected"
                           ? "bg-red-100 text-red-800"
                           : "bg-yellow-100 text-yellow-800"
-                      }`} // Conditional styling for status
+                      }`}
                     >
-                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)} {/* Capitalize status */}
+                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                     </span>
                     {appointment.rating && (
                       <div className="flex flex-col items-center">
                         <div className="flex items-center space-x-1">
-                          {renderStars(appointment.rating)} {/* Display rating stars */}
+                          {renderStars(appointment.rating)}
                         </div>
                         <p className="text-gray-600 text-sm mt-1">
                           {appointment.comment || "No comment"}
                         </p>
                       </div>
                     )}
-                    {(appointment.status === "active" || appointment.status === "completed") &&
-                      appointment.qrCodeUrl && (
-                        <div className="mt-4 text-center">
-                          <p className="text-gray-700 text-sm font-semibold mb-2">Appointment QR Code:</p>
-                          <img
-                            src={appointment.qrCodeUrl}
-                            alt="Appointment QR Code"
-                            className="ml-3 w-32 h-32 object-contain"
-                          />
-                        </div>
-                      )}
+                    {(appointment.status === "active" || appointment.status === "completed") && (
+                      <div className="mt-4 text-center">
+                        <p className="text-gray-700 text-sm font-semibold mb-2">
+                          Appointment QR Code :
+                        </p>
+                        <QRCodeCanvas
+                          className="ml-3"
+                          value={`${window.location.origin}/download-appointment/${appointment._id}`}
+                          size={128}
+                          level="H"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -395,11 +418,11 @@ export default function PatientAppointments() {
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Rate Your Appointment</h3>
                 <button
-                  onClick={() => setShowRatingModal(false)} // Close modal
+                  onClick={() => setShowRatingModal(false)}
                   className="cursor-pointer text-gray-500 hover:text-red-500 transition-colors duration-200"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /> {/* Close icon */}
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
@@ -407,39 +430,39 @@ export default function PatientAppointments() {
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Rating</label>
                   <div className="flex space-x-2">
-                    {renderStars(ratingData.rating, true)} {/* Interactive stars for rating */}
+                    {renderStars(ratingData.rating, true)}
                   </div>
                   {ratingData.rating === 0 && (
-                    <p className="text-red-500 text-sm mt-1">Please select a rating</p> // Validation message
+                    <p className="text-red-500 text-sm mt-1">Please select a rating</p>
                   )}
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Comment</label>
                   <textarea
                     value={ratingData.comment}
-                    onChange={(e) => setRatingData({ ...ratingData, comment: e.target.value })} // Update comment
+                    onChange={(e) => setRatingData({ ...ratingData, comment: e.target.value })}
                     className="w-full p-3 bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-300 resize-none"
                     rows="4"
                     placeholder="Share your feedback..."
-                    required // Make comment mandatory
+                    required
                   />
                 </div>
                 <div className="flex justify-end gap-4">
                   <button
                     type="button"
-                    onClick={() => setShowRatingModal(false)} // Close modal
+                    onClick={() => setShowRatingModal(false)}
                     className="cursor-pointer px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-300 font-medium shadow-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={ratingData.rating === 0} // Disable if no rating selected
+                    disabled={ratingData.rating === 0}
                     className={`cursor-pointer px-6 py-2 rounded-lg text-white font-medium transition-colors duration-300 shadow-sm ${
                       ratingData.rating === 0
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-indigo-600 hover:bg-indigo-700"
-                    }`} // Conditional styling
+                    }`}
                   >
                     Submit
                   </button>

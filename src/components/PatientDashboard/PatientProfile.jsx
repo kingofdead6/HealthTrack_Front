@@ -292,25 +292,75 @@ export default function PatientProfile({ user }) {
 
   // Generate and download medical state as PDF
   const downloadMedicalState = () => {
-    if (!patient?.medical_state) {
-      alert("No medical state information available to download."); // Validate medical state
-      return;
+  if (!patient?.medical_state) {
+    alert("No medical state information available to download.");
+    return;
+  }
+
+  const doc = new jsPDF();
+  
+  // Header
+  doc.setFillColor(33, 150, 243); // Blue background (#2196F3)
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255); // White text
+  doc.setFont("helvetica", "bold");
+  doc.text("Medical State Information", 20, 20);
+
+  // Content border
+  doc.setDrawColor(33, 150, 243);
+  doc.setLineWidth(0.5);
+  doc.rect(10, 40, 190, 247, 'S');
+
+  // Content details
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+  
+  let yOffset = 50;
+  const lineHeight = 10;
+  const labelWidth = 50;
+  const valueWidth = 130;
+
+  const fields = [
+    { label: "Patient Name", value: user.name || "Unknown", highlight: true },
+    { label: "Date", value: new Date().toLocaleDateString() },
+    { label: "Medical State", value: patient.medical_state || "No medical state provided" },
+  ];
+
+  fields.forEach((field, index) => {
+    // Alternating or highlighted row background
+    if (field.highlight) {
+      doc.setFillColor(227, 242, 253); // Light blue (#E3F2FD)
+      doc.rect(15, yOffset - 5, 180, lineHeight, 'F');
+    } else if (index % 2 === 0) {
+      doc.setFillColor(240, 248, 255); // Light blue (#F0F8FF)
+      doc.rect(15, yOffset - 5, 180, lineHeight, 'F');
     }
 
-    const content = `
-MEDICAL STATE INFORMATION
-------------------------
-Patient: ${user.name || "Unknown"}
-Date: ${new Date().toLocaleDateString()}
-------------------------
-${patient.medical_state}
-`; // Format medical state content
+    // Label
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(field.highlight ? 14 : 12);
+    doc.text(field.label + ":", 15, yOffset);
 
-    const doc = new jsPDF(); // Create new jsPDF instance
-    doc.setFontSize(12); // Set font size
-    doc.text(content, 10, 10); // Add text to PDF
-    doc.save(`medical_state_${user.name || "patient"}_${new Date().toISOString().split("T")[0]}.pdf`); // Save PDF
-  };
+    // Value
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(field.highlight ? 14 : 12);
+    const splitValue = doc.splitTextToSize(field.value, valueWidth);
+    doc.text(splitValue, 65, yOffset);
+    yOffset += Math.max(splitValue.length, 1) * lineHeight;
+  });
+
+  // Footer
+  doc.setFillColor(33, 150, 243);
+  doc.rect(0, 287, 210, 10, 'F');
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text(`Generated on ${new Date().toLocaleDateString()}`, 20, 293);
+  doc.text("Healthcare System", 170, 293);
+
+  const fileName = `MedicalState_${user.name || "Unknown"}_${new Date().toISOString().split("T")[0]}.pdf`;
+  doc.save(fileName);
+};
 
   // Download medical register PDF from API
   const handleDownloadPDF = async (index) => {
